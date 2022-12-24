@@ -63,7 +63,6 @@ client.on("messageCreate", async (message) => {
                     console.log(manga_details)
                     
                     for (let chapter in manga_details.chapters) {
-                        let chapter_string = JSON.stringify(manga_details.chapters[chapter], null, 4)
                         message.channel.send(chapter_string)
                     }
                     
