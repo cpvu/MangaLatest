@@ -1,17 +1,40 @@
-import { Client, Collection, Events, GatewayIntentBits } from "discord.js"
+import { Client, EmbedBuilder, Events, GatewayIntentBits } from "discord.js"
 import config from "./config.json" assert {type: "json"};
 //import {mangaFetch} from "./src/fetch-manga.js"
-import { MANGA } from '@consumet/extensions'
+import got from "got"
 
 const PREFIX = "!";
-const mangadex = new MANGA.MangaDex();
+let sessionToken, expires, refreshToken; 
 
 async function fetchManga(mangaName) {
-   return mangadex.search(mangaName)
+    const url = "https://api.mangadex.org"
+    const options = {
+        method: "GET", 
+        searchParams: {
+            "title" : `${mangaName}`,
+            "availableTranslatedLanguage[]": "en"
+        },
+    }
+
+    const data = await got(`${url}/manga`, options).json()
+
+    return data
 }
 
-async function fetchMangaDetails(mangaID){
-    return mangadex.fetchMangaInfo(mangaID)
+async function fetchChapters(mangaID){
+    const url = "https://api.mangadex.org"
+    const options = {
+        method: "GET", 
+        searchParams: {
+            "translatedLanguage[]": "en"
+        },
+    }
+
+    const data = await got(`${url}/manga/${mangaID}/feed`, options).json()
+    const chapter_data = data.data
+
+    return chapter_data
+    
 }
 
 async function createSearch(argument) {
@@ -23,6 +46,7 @@ async function createSearch(argument) {
 
     return search_string.trimEnd()
 }
+
 
 const client = new Client({
     intents: [
@@ -44,31 +68,40 @@ client.on("messageCreate", async (message) => {
 
             switch(commands) {
                 case commands = "manga":
-                    let manga_search = await createSearch(args)
+                    const searchName = await createSearch(args)
+                    const manga_info = await fetchManga(searchName)
 
-                    console.log(manga_search)
-        
-                    const manga_object = await fetchManga(manga_search)
-                
-                    manga_object["results"].forEach((manga) => {
-                      message.channel.send(`${manga.title} ${manga.id}`)
+                    manga_info.data.forEach(manga => {
+
+                        const embed = new EmbedBuilder()
+                            .setTitle(`${manga.attributes.title.en}`)
+                            .setColor(0xFF0000)
+                            .setDescription(`ID: ${manga.id}`)
+
+                        message.channel.send({embeds: [embed]})
                     })
-
                     break; 
 
                 case commands = "chapter":
-                    console.log(args[0])
-                    const manga_details = await fetchMangaDetails(args[0])
-                    
-                    console.log(manga_details)
-                    
-                    for (let chapter in manga_details.chapters) {
-                        message.channel.send(chapter_string)
+                    const mangaChapter = await fetchChapters(args[0])
+                    const sortedChapters = mangaChapter.sort((a, b) => parseInt(b.attributes.chapter) - parseInt(a.attributes.chapter))
+
+                    let chapter_url = sortedChapters[0].attributes.externalUrl
+
+                    console.log(sortedChapters[0])
+                    console.log(sortedChapters[1])
+
+                    if (sortedChapters[0].attributes.externalUrl === null) {
+                        chapter_url = `https://mangadex.org/chapter/${sortedChapters[0].id}`
                     }
-                    
+                       const embed = new EmbedBuilder()
+                            .setTitle(`${sortedChapters[0].attributes.title}`)
+                            .setColor(0xFF0000)
+                            .setDescription(`URL: ${chapter_url}`)
+
+                    message.channel.send({embeds: [embed]})
                     break;
             }
-
         }
     } catch (e) {
         console.log(e)
