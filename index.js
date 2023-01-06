@@ -1,6 +1,9 @@
 import { Client, EmbedBuilder, Events, GatewayIntentBits } from "discord.js"
 import config from "./config.json" assert {type: "json"};
 import {fetchManga, fetchChapters} from "./src/fetch-manga.js"
+import mongoose from 'mongoose'
+import 'dotenv/config'
+import { insertMangaID } from "./manga-schema.js";
 
 const PREFIX = "!";
 
@@ -23,8 +26,17 @@ const client = new Client({
     ]
 })
 
-client.once(Events.ClientReady, c => {
+client.once(Events.ClientReady, async (c) => {
     console.log(`Ready logged in as ${c.user.tag}`)
+
+    await mongoose.connect(
+        process.env.MONGO_URI, 
+        {
+            dbName: 'Discord_Users',
+            keepAlive: true
+        }
+    )
+    console.log("Connected to mongoose")
 });
 
 client.on("messageCreate", async (message) => {
@@ -63,6 +75,15 @@ client.on("messageCreate", async (message) => {
 
                     message.channel.send({ embeds: [embed] })
                     break;
+                
+                case commands = "save":
+                    const userID = message.author.id
+                
+                    const mangaModel = await insertMangaID(userID, args[0])
+        
+                    await mangaModel({
+                        mangaID: `${args[0]}`
+                    }).save()
             }
         }
     } catch (e) {
@@ -70,4 +91,4 @@ client.on("messageCreate", async (message) => {
     }
 })
 
-client.login(config.token)
+client.login(process.env.TOKEN)
