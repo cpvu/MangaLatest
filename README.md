@@ -28,5 +28,5 @@ Save desired manga to database
 ```
 !save <manga_id>
 ```
-## Credit
+## Acknowledgements
 Credits to Mangadex and their team for the API that they have created
